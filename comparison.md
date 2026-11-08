@@ -1,3 +1,8 @@
+These are the original reported results, not new Linux measurements. The
+original macOS binaries now live in `darwin/c/` and `darwin/lang/`; native Linux
+builds live in `linux/c/` and `linux/lang/`. See [README.md](README.md) for build
+and correctness-check commands.
+
 ## Method
 
 - Lang: `-O1`, explicit machine evidence, `--require-derived-the-term`; C: Clang `-O3 -std=c11`.

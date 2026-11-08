@@ -1,4 +1,74 @@
-## Results
+# LangBench
+
+## Layout
+
+- `c/` and `lang/`: benchmark sources and shared input helpers.
+- `darwin/c/` and `darwin/lang/`: macOS executables, moved from the source directories.
+- `linux/c/` and `linux/lang/`: Linux executables.
+- `scripts/`: native build and small-input correctness checks.
+- `build/<platform>/`: ignored build logs, machine evidence and a JSON build report.
+
+The preserved macOS binaries are arm64. The Linux binaries built here are
+x86-64. Builds target the current host only; rebuilding on another architecture
+replaces that platform's binaries. These folders do not imply cross-compilation.
+Lang uses host CPU evidence, so rebuild on the target machine when its CPU or
+native libraries differ. See [linux/README.md](linux/README.md) for build provenance.
+
+Existing executable names are retained: Lang's fibers executable is
+`fibers-dynamic`, and its sorted-k executable is `sorted_k`. Both `sorted-first`
+and the historical `sorted_first` are retained; a new Lang build updates both
+from `lang/sorted-first-cli.lang`. `recurrence-jump` is C-only.
+
+## Build and check
+
+Python 3 and a C11 compiler are required for C. The Lang build additionally needs
+a built [Lang compiler](https://github.com/unktomi/Lang), Node.js, and the native
+dependencies required by that compiler. Build the compiler separately with its
+documented `npm run build` workflow. No toolchains are installed by these scripts.
+
+From this checkout (the scripts also work from another working directory):
+
+```sh
+python3 scripts/build.py --implementation c
+python3 scripts/smoke-test.py --implementation c
+
+export LANG_TOOLCHAIN=/path/to/Lang
+# Optional when clang is not on PATH:
+# export LANG_CLANG=/path/to/clang
+python3 scripts/build.py --implementation lang
+python3 scripts/smoke-test.py --implementation lang
+```
+
+The builder chooses `darwin` or `linux` automatically. Omit `--implementation`
+to build both languages. `--compiler /path/to/Lang` overrides `LANG_TOOLCHAIN`;
+without either, the default is a sibling `../Lang` checkout. `CC` and `CFLAGS`
+override the C compiler and flags (defaults: `cc`, `-O3 -std=c11 -Wall -Wextra`).
+Lang uses its native default optimization and explicit host machine evidence,
+with `--require-derived-the-term`. It never falls back to unoptimized builds.
+
+Use repeatable `--benchmark NAME` options on either script for a subset, for example:
+
+```sh
+python3 scripts/build.py --implementation c --benchmark sorted-k
+python3 scripts/smoke-test.py --implementation c --benchmark sorted-k
+./linux/c/sorted-k 1 9 2 5
+# On macOS: ./darwin/c/sorted-k 1 9 2 5
+```
+
+A failed build returns a nonzero status and records the failure under `build/`.
+Compilation uses temporary outputs, so compiler errors do not replace previous
+executables. Only test or time a workload after its build succeeds. Smoke tests
+use independent integer oracles and small inputs,
+including wraparound, generated input, sorting ranks and invalid arguments.
+They do not run the expensive benchmark defaults or measure performance.
+
+Builder regression tests: `python3 -m unittest discover -s tests -v`.
+
+## Historical results
+
+The original results below are retained. Moving the binaries and running Linux
+correctness tests does not reproduce or update these timings. See
+[comparison.md](comparison.md) for the original method.
 
 | Workload | C -O3 ms | Lang ms | Result |
 |---|---:|---:|---:|
