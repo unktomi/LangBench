@@ -1,5 +1,9 @@
 import Lang.Prelude
 import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sub
+import SubOps
+import Lang.Prelude.Typeclasses.Eq
+import EqOps
 import Lang.Data.List.Core
 import BenchmarkInput
 import SortedFirst
@@ -8,8 +12,8 @@ import SortedFirst
 fn kth : Uint64 -> List(Uint64) -> Uint64
 kth k nil = 0u64
 kth k (cons x xs) =
-  if Uint64.eq k 0u64 then x
-  else kth (Uint64.sub k 1u64) xs
+  if k == 0u64 then x
+  else kth (k - 1u64) xs
 
 -- Keep the full sort in the source: the compiler must derive any selection
 -- algorithm from the observation at the `the` boundary.

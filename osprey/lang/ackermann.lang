@@ -30,7 +30,7 @@ usage =
 
 proc main : Unit
 main = the Unit in
-  if Int64.ne (cli_argument_count_native ()) 3i64 then usage else
+  if cli_argument_count_native () != 3i64 then usage else
   match argument 1i64 with
     nothing -> usage
     just m -> match argument 2i64 with

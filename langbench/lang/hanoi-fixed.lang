@@ -1,5 +1,7 @@
 import Lang.Prelude
 import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Ord
+import OrdOps
 import Lang.Prelude.Typeclasses.Sum
 import SumOps
 import Lang.Prelude.Typeclasses.Sub
@@ -28,7 +30,7 @@ argument index =
 -- An optional positional argument: absent -> the default, present -> must parse.
 proc argument_or : Int64 -> Uint64 -> Maybe(Uint64)
 argument_or index fallback =
-  if Int64.le (cli_argument_count_native ()) index then just fallback else argument index
+  if cli_argument_count_native () <= index then just fallback else argument index
 
 proc usage : Unit
 usage =
@@ -37,9 +39,9 @@ usage =
 
 proc main : Unit
 main =
-  if Int64.gt (cli_argument_count_native ()) 2i64 then usage else
+  if cli_argument_count_native () > 2i64 then usage else
   match argument_or 1i64 31u64 with
     nothing -> usage
-    just disks -> if Uint64.gt disks 63u64 then usage else
+    just disks -> if disks > 63u64 then usage else
       let _ = cli_write_line cli_stdout (integer_render integer_u64 radix_decimal (benchmark disks)) in ()
   end

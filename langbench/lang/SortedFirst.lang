@@ -1,10 +1,13 @@
 import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Ord
+import OrdOps
 import Lang.Data.List.Core
 
 fn insert : Uint64 -> List(Uint64) -> List(Uint64)
 insert x nil = cons x nil
 insert x (cons y ys) =
-  if Uint64.le x y then cons x (cons y ys) else cons y (insert x ys)
+  if x <= y then cons x (cons y ys) else cons y (insert x ys)
 
 fn sort : List(Uint64) -> List(Uint64)
 sort nil = nil

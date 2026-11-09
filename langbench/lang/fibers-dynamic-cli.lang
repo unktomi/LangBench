@@ -1,4 +1,17 @@
 import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sub
+import SubOps
+import Lang.Prelude.Typeclasses.Product
+import ProductOps
+import Lang.Prelude.Typeclasses.Sum
+import SumOps
+import Lang.Prelude.Typeclasses.Mod
+import ModOps
+import Lang.Prelude.Typeclasses.Ord
+import OrdOps
+import Lang.Prelude.Typeclasses.Eq
+import EqOps
 
 -- The consumer's coefficient is determined by the complete producer. Its
 -- payloads have different telescopes and the observation is order-sensitive.
@@ -10,18 +23,17 @@ end
 
 fn consume : Int32 -> Rows -o Int32
 consume coefficient rows = Rows.fold 17i32
-  (\word rest -o Int32.sub (Int32.mul word coefficient) rest)
-  (\word fraction rest -o Int32.add (Int32.sub (Int32.mul word 3i32) rest)
-    (if Float64.lt fraction 0.0f64 then coefficient else Int32.sub 0i32 coefficient)) rows
+  (\word rest -o ((word * coefficient) - rest))
+  (\word fraction rest -o (((word * 3i32) - rest) + (if fraction < 0.0f64 then coefficient else (0i32 - coefficient)))) rows
 
 fn build : Int64 -> Int64 -> Int32 -> Rows -o Int32
 build remaining index coefficient rows =
-  if Int64.gt remaining 0i64 then
-    let word = Int32.sub (Int32.mul (Int32.from_int64 index) 7919i32) 97i32 in
-    let next = if Int64.eq (Int64.rem index 3i64) 0i64
+  if remaining > 0i64 then
+    let word = ((Int32.from_int64 index * 7919i32) - 97i32) in
+    let next = if (index % 3i64) == 0i64
       then single word rows
-      else mixed word (if Int64.eq (Int64.rem index 2i64) 0i64 then -0.5f64 else 0.25f64) rows in
-    build (Int64.sub remaining 1i64) (Int64.add index 1i64) (Int32.bit_xor coefficient word) next
+      else mixed word (if (index % 2i64) == 0i64 then -0.5f64 else 0.25f64) rows in
+    build (remaining - 1i64) (index + 1i64) (Int32.bit_xor coefficient word) next
   else consume coefficient rows
 
 fn benchmark : Int64 -> Int32
@@ -41,7 +53,7 @@ argument index =
 -- An optional positional argument: absent -> the default, present -> must parse.
 proc argument_or : Int64 -> Uint64 -> Maybe(Uint64)
 argument_or index fallback =
-  if Int64.le (cli_argument_count_native ()) index then just fallback else argument index
+  if cli_argument_count_native () <= index then just fallback else argument index
 
 proc usage : Unit
 usage =
@@ -50,10 +62,10 @@ usage =
 
 proc main : Unit
 main =
-  if Int64.gt (cli_argument_count_native ()) 2i64 then usage else
+  if cli_argument_count_native () > 2i64 then usage else
   match argument_or 1i64 8388608u64 with
     nothing -> usage
-    just count -> if Uint64.gt count 10000000u64 then usage else
+    just count -> if count > 10000000u64 then usage else
       let result = benchmark (Int64.from_uint64 count) in
       let _ = cli_write_line cli_stdout (integer_render integer_i32 radix_decimal result) in ()
   end
