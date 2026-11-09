@@ -1,9 +1,9 @@
 import Lang.Prelude
 import Lang.Prelude.Instances
 import Lang.Prelude.Typeclasses.Sub
-import SubOps
+import Sub.SubOps
 import Lang.Prelude.Typeclasses.Eq
-import EqOps
+import Eq.EqOps
 import Lang.Data.List.Core
 import BenchmarkInput
 import SortedFirst
