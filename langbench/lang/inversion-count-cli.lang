@@ -1,0 +1,40 @@
+-- Challenge for the Lang optimizer: count strict inversions in a runtime list.
+-- An inversion is a pair i < j with values[i] > values[j]. Equal values
+-- do not count. This deliberately expresses the obvious quadratic algorithm;
+-- an asymptotically faster implementation normally needs a merge-sort-like
+-- algorithm or an order-statistics data structure.
+--
+-- Place this file beside BenchmarkInput.lang from the LangBench repository.
+-- Expected checks:
+--   inversion-count 3 1 2                   => 2
+--   inversion-count 2 2 1                   => 2
+--   inversion-count 1 2 3                   => 0
+--   inversion-count --generate 1000 42      => 260740
+--   inversion-count --generate 131072 42    => 4301971780
+-- All values are unsigned 64-bit integers supplied at runtime.
+
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Data.List.Core
+import BenchmarkInput
+
+fn smaller_to_right : Uint64 -> List(Uint64) -> Uint64
+smaller_to_right x nil = 0u64
+smaller_to_right x (cons y ys) =
+  if Uint64.gt x y then Uint64.add 1u64 (smaller_to_right x ys)
+  else smaller_to_right x ys
+
+fn inversions : List(Uint64) -> Uint64
+inversions nil = 0u64
+inversions (cons x xs) =
+  Uint64.add (smaller_to_right x xs) (inversions xs)
+
+fn benchmark : List(Uint64) -> Uint64
+benchmark values = the Uint64 in inversions values
+
+proc main : Unit
+main =
+  match bench_input 1i64 131072u64 42u64 with
+    nothing -> bench_usage "usage: inversion-count [values...] | --generate [count [seed]] (defaults 131072 42)"
+    just values -> bench_print (benchmark values)
+  end

@@ -1,0 +1,34 @@
+import Lang.Prelude
+import Lang.Data.List.Core
+import BenchmarkInput
+
+fn symbols : List(Uint64) -> List(Uint64)
+symbols nil = nil
+symbols (cons x rest) = cons (Uint64.rem x 4u64) (symbols rest)
+
+fn lcs : List(Uint64) -> List(Uint64) -> Uint64
+lcs left right =
+  match left with
+    nil -> 0u64
+    cons x xs -> match right with
+      nil -> 0u64
+      cons y ys -> if Uint64.eq x y then Uint64.add 1u64 (lcs xs ys) else
+        let a = lcs xs right in
+        let b = lcs left ys in
+        if Uint64.gt a b then a else b
+    end
+  end
+
+fn benchmark : List(Uint64) -> List(Uint64) -> Uint64
+benchmark left right = the Uint64 in lcs left right
+
+proc main : Unit
+main =
+  let usage = "usage: lcs <left-count> [values...] | <left-count> --generate [total-count [seed]]" in
+  match bench_argument 1i64 with
+    nothing -> bench_usage usage
+    just split -> match bench_input 2i64 400u64 42u64 with
+      nothing -> bench_usage usage
+      just words -> bench_print (benchmark (symbols (bench_take split words)) (symbols (bench_drop split words)))
+    end
+  end

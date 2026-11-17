@@ -1,0 +1,49 @@
+import Lang.Prelude
+import Lang.Data.List.Core
+import Lang.Cli.Process
+import BenchmarkInput
+
+data Instruction where
+  add_word : Uint64 -> Instruction
+  mix_right : Uint64 -> Instruction
+  multiply_word : Uint64 -> Instruction
+  xor_word : Uint64 -> Instruction
+end
+
+fn program : Unit -> List(Instruction)
+program _ = cons (add_word 1234567890123456789u64)
+  (cons (mix_right 17u64)
+  (cons (multiply_word 6364136223846793005u64)
+  (cons (xor_word 1442695040888963407u64)
+  (cons (mix_right 29u64)
+  (cons (multiply_word 2862933555777941757u64)
+  (cons (mix_right 41u64) nil))))))
+
+fn interpret : List(Instruction) -> Uint64 -> Uint64
+interpret nil state = state
+interpret (cons instruction rest) state =
+  let next = match instruction with
+    add_word x -> Uint64.add state x
+    mix_right shift -> Uint64.bit_xor state (Uint64.shift_right state shift)
+    multiply_word x -> Uint64.mul state x
+    xor_word x -> Uint64.bit_xor state x
+  end in interpret rest next
+
+fn execute : Uint64 -> Uint64 -> Uint64
+execute rounds state = if Uint64.eq rounds 0u64 then state else
+  execute (Uint64.sub rounds 1u64) (interpret (program ()) state)
+
+fn benchmark : Uint64 -> Uint64 -> Uint64
+benchmark rounds state = the Uint64 in execute rounds state
+
+proc main : Unit
+main =
+  let usage = "usage: static-vm [rounds [initial-state]]" in
+  if Int64.gt (cli_argument_count_native ()) 3i64 then bench_usage usage else
+  match bench_argument_or 1i64 1000000u64 with
+    nothing -> bench_usage usage
+    just rounds -> match bench_argument_or 2i64 42u64 with
+      nothing -> bench_usage usage
+      just state -> bench_print (benchmark rounds state)
+    end
+  end
