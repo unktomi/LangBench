@@ -1,0 +1,23 @@
+import Lang.Prelude
+import Lang.Data.Stream
+
+-- A productive source of runtime-generated transaction amounts.
+fn transactions : Int64 -> Int64 -> Stream(Int64)
+stream_head (transactions amount increment) = amount
+stream_tail (transactions amount increment) =
+  transactions (Int64.add amount increment) increment
+
+-- One output is available even when the rest of the input is infinite.
+fn running_totals : Int64 -> Stream(Int64) -> Stream(Int64)
+stream_head (running_totals total source) = total
+stream_tail (running_totals total source) =
+  running_totals (Int64.add total (stream_head source)) (stream_tail source)
+
+fn observe_position : Int64 -> Stream(Int64) -> Int64
+observe_position position source =
+  if Int64.le position 0i64 then stream_head source
+  else observe_position (Int64.sub position 1i64) (stream_tail source)
+
+fn running_balance : Int64 -> Int64 -> Int64 -> Int64 -> Int64
+running_balance initial first increment position = the Int64 in
+  observe_position position (running_totals initial (transactions first increment))

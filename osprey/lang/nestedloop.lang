@@ -1,0 +1,36 @@
+import Osprey.Arguments
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Product
+import Product.ProductOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Mod
+import Mod.ModOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Cli.Text
+import Lang.Text.MachineFormat
+
+fn loop_k : Uint64 -> Uint64 -> Uint64 -> Uint64 -> Uint64
+loop_k i j k total = if k == 0u64 then total
+  else loop_k i j (k - 1u64) ((total + i * j * k) % 1000000007u64)
+
+fn loop_j : Uint64 -> Uint64 -> Uint64 -> Uint64 -> Uint64
+loop_j i j limit total = if j == 0u64 then total
+  else loop_j i (j - 1u64) limit (loop_k i j limit total)
+
+fn loop_i : Uint64 -> Uint64 -> Uint64 -> Uint64
+loop_i i limit total = if i == 0u64 then total
+  else loop_i (i - 1u64) limit (loop_j i limit limit total)
+
+fn benchmark : Uint64 -> Uint64
+benchmark limit = loop_i limit limit 0u64
+
+proc main : Unit
+main = the Unit in
+  let parameter_1 = osprey_argument 1i64 in
+  let _ = cli_write_line cli_stdout
+  (integer_render integer_u64 radix_decimal (benchmark parameter_1)) in ()

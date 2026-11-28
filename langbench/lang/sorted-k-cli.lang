@@ -1,0 +1,32 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Data.List.Core
+import BenchmarkInput
+import SortedFirst
+
+-- Zero-based rank, returning 0 when the rank is outside the list.
+fn kth : Uint64 -> List(Uint64) -> Uint64
+kth k nil = 0u64
+kth k (cons x xs) =
+  if k == 0u64 then x
+  else kth (k - 1u64) xs
+
+-- Keep the full sort in the source: the compiler must derive any selection
+-- algorithm from the observation at the `the` boundary.
+fn sorted_k : Uint64 -> List(Uint64) -> Uint64
+sorted_k k values = the Uint64 in kth k (sort values)
+
+proc main : Unit
+main =
+  match bench_argument 1i64 with
+    nothing -> bench_usage "usage: sorted-k <k> [values...] | sorted-k <k> --generate [count [seed]] (zero-based rank; out of range returns 0; generate defaults 240000 42)"
+    just k -> match bench_input 2i64 240000u64 42u64 with
+      nothing -> bench_usage "usage: sorted-k <k> [values...] | sorted-k <k> --generate [count [seed]] (zero-based rank; out of range returns 0; generate defaults 240000 42)"
+      just values -> bench_print (sorted_k k values)
+    end
+  end
+

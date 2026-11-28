@@ -1,0 +1,32 @@
+import Lang.Prelude
+import Lang.Data.List.Core
+import BenchmarkInput
+
+-- a: skip left head
+-- b: skip right head
+-- d: skip both heads
+fn count_layer : Uint64 -> Uint64 -> Uint64 -> Uint64 -> Uint64 -> Uint64
+count_layer x y a b d =
+  let without_both = Uint64.rem
+    (Uint64.sub (Uint64.add (Uint64.add a b) 65521u64) d)
+    65521u64 in
+  if Uint64.eq x y then
+    Uint64.rem (Uint64.add without_both d) 65521u64
+  else without_both
+
+fn embedding_pairs : List(Uint64) -> List(Uint64) -> Uint64
+embedding_pairs left right =
+  match left with
+    nil -> 1u64
+    cons x xs -> match right with
+      nil -> 1u64
+      cons y ys ->
+        let a = embedding_pairs xs right in
+        let b = embedding_pairs left ys in
+        let d = embedding_pairs xs ys in
+        count_layer x y a b d
+    end
+  end
+
+fn benchmark : List(Uint64) -> List(Uint64) -> Uint64
+benchmark left right = the Uint64 in embedding_pairs left right

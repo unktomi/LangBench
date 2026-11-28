@@ -1,0 +1,23 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import RuntimeTreeArguments
+import RuntimeTreeObserver
+import SigfpeCli
+
+proc usage : Unit
+usage = sigfpe_usage "usage: runtime-tree-observer forward PREFIX_TOKENS..."
+
+proc main : Unit
+main =
+  let count = cli_argument_count_native () in
+  if Int64.lt count 3i64 then usage else
+  match cli_argument_nth (cli_arguments !cli_process) 1i64 with
+    nothing -> usage
+    just mode ->
+      if String.eq mode "forward" then
+        match runtime_tree_arguments count with
+          nothing -> usage
+          just expression -> sigfpe_print (runtime_tree_observed expression)
+        end
+      else usage
+  end

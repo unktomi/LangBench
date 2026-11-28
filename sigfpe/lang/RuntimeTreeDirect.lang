@@ -1,0 +1,24 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import DerivativeFlipDirect
+
+the SigfpeNumber(Int64) where
+  sigfpe_zero = 0i64
+  sigfpe_one = 1i64
+  sigfpe_number_add = \a b -> Int64.add a b
+  sigfpe_number_mul = \a b -> Int64.mul a b
+end
+
+fn runtime_tree_laplace : SigfpeExpr(Int64, Int64)
+runtime_tree_laplace =
+  let x : SigfpeExpr(Int64, Int64) = sigfpe_var 0i64 in
+  let y : SigfpeExpr(Int64, Int64) = sigfpe_var 1i64 in
+  sigfpe_add (sigfpe_mul x x) (sigfpe_mul y y)
+
+-- The caller supplies the whole recursive AST, including tags and children.
+-- Preserve sigfpe's apply, atZero and pairing without specializing them here.
+fn runtime_tree_forward : SigfpeExpr(Int64, Int64) -> Int64
+runtime_tree_forward expression = sigfpe_pair runtime_tree_laplace expression
+
+fn runtime_tree_flipped : SigfpeExpr(Int64, Int64) -> Int64
+runtime_tree_flipped expression = sigfpe_pair expression runtime_tree_laplace

@@ -1,0 +1,37 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import CircularBlur
+
+proc usage : Unit
+usage = sigfpe_usage "usage: circular-blur a b c d focus (focus: 0..3) [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 6i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just a ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just b ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just c ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just d ->
+              match sigfpe_argument 5i64 with
+                nothing -> usage
+                just focus ->
+                if Bool.and (Int64.ge focus 0i64) (Int64.le focus 3i64) then
+                  sigfpe_print (sigfpe_repeat reps (\i -> focused_blur (Int64.add a i) (Int64.add b i) (Int64.add c i) (Int64.add d i) focus))
+                else usage
+              end
+            end
+          end
+        end
+      end
+  end

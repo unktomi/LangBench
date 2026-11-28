@@ -1,0 +1,65 @@
+-- Challenge for the Lang optimizer: count strict inversions in a runtime list.
+-- An inversion is a pair i < j with values[i] > values[j]. Equal values
+-- do not count. This deliberately expresses the obvious quadratic algorithm;
+-- an asymptotically faster implementation normally needs a merge-sort-like
+-- algorithm or an order-statistics data structure.
+--
+-- Place this file beside BenchmarkInput.lang from the LangBench repository.
+-- Expected checks:
+--   inversion-count 3 1 2                   => 2
+--   inversion-count 2 2 1                   => 2
+--   inversion-count 1 2 3                   => 0
+--   inversion-count --generate 1000 42      => 260740
+--   inversion-count --generate 131072 42    => 4301971780
+-- All values are unsigned 64-bit integers supplied at runtime.
+
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Data.List.Core
+import Lang.Cli.Process
+import Lang.Cli.Text
+import BenchmarkInput
+
+fn smaller_to_right : Uint64 -> List(Uint64) -> Uint64
+smaller_to_right x nil = 0u64
+smaller_to_right x (cons y ys) =
+  if Uint64.gt x y then Uint64.add 1u64 (smaller_to_right x ys)
+  else smaller_to_right x ys
+
+fn inversions : List(Uint64) -> Uint64
+inversions nil = 0u64
+inversions (cons x xs) =
+  Uint64.add (smaller_to_right x xs) (inversions xs)
+
+fn benchmark : List(Uint64) -> Uint64
+benchmark values = the Uint64 in inversions values
+
+fn benchmark_generated : Uint64 -> Uint64 -> Uint64
+benchmark_generated count seed = the Uint64 in inversions (bench_generate count seed)
+
+proc input_count : Int64 -> Uint64 -> Uint64 -> Maybe(Uint64)
+input_count index default_count default_seed =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> just (benchmark nil)
+    just text -> if String.eq text "--generate" then
+      if cli_argument_count_native () > (index + 3i64) then nothing else
+      match bench_argument_or (index + 1i64) default_count with
+        nothing -> nothing
+        just count -> if count > 1048576u64 then nothing else
+          match bench_argument_or (index + 2i64) default_seed with
+            nothing -> nothing
+            just seed -> just (benchmark_generated count seed)
+          end
+      end
+      else match bench_values index with
+        nothing -> nothing
+        just values -> just (benchmark values)
+      end
+  end
+
+proc main : Unit
+main =
+  match input_count 1i64 131072u64 42u64 with
+    nothing -> bench_usage "usage: inversion-count [values...] | --generate [count [seed]] (defaults 131072 42)"
+    just count -> bench_print count
+  end

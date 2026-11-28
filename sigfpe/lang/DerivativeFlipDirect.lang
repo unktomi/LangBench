@@ -1,0 +1,75 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+
+-- Direct AST translation of the Haskell in sigfpe's "Derivative flipping".
+-- https://blog.sigfpe.com/2026/11/derivative-flipping.html
+data SigfpeExpr(V : Type, A : Type) where
+  sigfpe_var : V -> SigfpeExpr(V, A)
+  sigfpe_add : SigfpeExpr(V, A) -> SigfpeExpr(V, A) -> SigfpeExpr(V, A)
+  sigfpe_mul : SigfpeExpr(V, A) -> SigfpeExpr(V, A) -> SigfpeExpr(V, A)
+  sigfpe_lit : A -> SigfpeExpr(V, A)
+end
+
+-- The operations of Haskell's Num used by apply and atZero.
+the SigfpeNumber(A : Type) where
+  sigfpe_zero : A
+  sigfpe_one : A
+  sigfpe_number_add : A -> A -> A
+  sigfpe_number_mul : A -> A -> A
+end
+
+the SigfpeNumber(Int) where
+  sigfpe_zero = 0
+  sigfpe_one = 1
+  sigfpe_number_add = \a b -> Int.add a b
+  sigfpe_number_mul = \a b -> Int.mul a b
+end
+
+fn sigfpe_apply : SigfpeExpr(V, A) -> SigfpeExpr(V, A) -> SigfpeExpr(V, A) given Eq(V), SigfpeNumber(A)
+sigfpe_apply (sigfpe_var v) (sigfpe_var w) =
+  if eq v w then sigfpe_lit sigfpe_one else sigfpe_lit sigfpe_zero
+sigfpe_apply (sigfpe_add a b) c =
+  sigfpe_add (sigfpe_apply a c) (sigfpe_apply b c)
+sigfpe_apply (sigfpe_mul a b) c =
+  sigfpe_apply a (sigfpe_apply b c)
+sigfpe_apply (a @ sigfpe_lit _) b =
+  sigfpe_mul a b
+sigfpe_apply a (sigfpe_add b c) =
+  sigfpe_add (sigfpe_apply a b) (sigfpe_apply a c)
+sigfpe_apply (v @ sigfpe_var _) (sigfpe_mul b c) =
+  sigfpe_add (sigfpe_mul (sigfpe_apply v b) c) (sigfpe_mul b (sigfpe_apply v c))
+sigfpe_apply (sigfpe_var _) (sigfpe_lit _) =
+  sigfpe_lit sigfpe_zero
+
+fn sigfpe_at_zero : SigfpeExpr(V, A) -> A given Eq(V), SigfpeNumber(A)
+sigfpe_at_zero (sigfpe_lit a) = a
+sigfpe_at_zero (sigfpe_var _) = sigfpe_zero
+sigfpe_at_zero (sigfpe_add a b) = sigfpe_number_add (sigfpe_at_zero a) (sigfpe_at_zero b)
+sigfpe_at_zero (sigfpe_mul a b) = sigfpe_number_mul (sigfpe_at_zero a) (sigfpe_at_zero b)
+
+fn sigfpe_pair : SigfpeExpr(V, A) -> SigfpeExpr(V, A) -> A given Eq(V), SigfpeNumber(A)
+sigfpe_pair a b = sigfpe_at_zero (sigfpe_apply a b)
+
+proc main : Unit
+main =
+  let x : SigfpeExpr(Int, Int) = sigfpe_var 0 in
+  let y : SigfpeExpr(Int, Int) = sigfpe_var 1 in
+  let lap = sigfpe_add (sigfpe_mul x x) (sigfpe_mul y y) in
+  -- Haskell's subtraction uses AST negation: multiply by a literal -1.
+  let _ = print (String.concat (Int.show (sigfpe_pair lap
+    (sigfpe_mul
+      (sigfpe_mul
+        (sigfpe_add (sigfpe_add x y) (sigfpe_lit 1))
+        (sigfpe_add
+          (sigfpe_add x (sigfpe_mul (sigfpe_lit (-1)) (sigfpe_mul (sigfpe_lit 3) y)))
+          (sigfpe_lit 2)))
+      (sigfpe_add (sigfpe_add x y) (sigfpe_lit 3))))) "\n") in
+  print (String.concat (Int.show (sigfpe_pair
+    (sigfpe_mul
+      (sigfpe_mul
+        (sigfpe_add (sigfpe_add x y) (sigfpe_lit 1))
+        (sigfpe_add
+          (sigfpe_add x (sigfpe_mul (sigfpe_lit (-1)) (sigfpe_mul (sigfpe_lit 3) y)))
+          (sigfpe_lit 2)))
+      (sigfpe_add (sigfpe_add x y) (sigfpe_lit 3)))
+    lap)) "\n")

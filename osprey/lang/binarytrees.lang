@@ -1,0 +1,40 @@
+import Osprey.Arguments
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Cli.Text
+import Lang.Text.MachineFormat
+
+data Tree where
+  leaf : Tree
+  node : Tree -> Tree -> Tree
+end
+
+fn make_tree : Uint64 -> Tree
+make_tree depth = if depth == 0u64 then node leaf leaf
+  else node (make_tree (depth - 1u64)) (make_tree (depth - 1u64))
+
+fn check_tree : Tree -> Uint64
+check_tree leaf = 0u64
+check_tree (node left right) = 1u64 + check_tree left + check_tree right
+
+fn repeat_trees : Uint64 -> Uint64 -> Uint64
+repeat_trees count depth = if count == 0u64 then 0u64
+  else check_tree (make_tree depth) + repeat_trees (count - 1u64) depth
+
+fn benchmark : Uint64 -> Uint64 -> Uint64
+benchmark count depth = repeat_trees count depth
+
+proc main : Unit
+main = the Unit in
+  let parameter_1 = osprey_argument 1i64 in
+  let parameter_2 = osprey_argument 2i64 in
+  let _ = cli_write_line cli_stdout
+  (integer_render integer_u64 radix_decimal (benchmark parameter_1 parameter_2)) in ()

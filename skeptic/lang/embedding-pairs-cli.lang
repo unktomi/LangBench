@@ -1,0 +1,27 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import Lang.Data.List.Core
+import BenchmarkInput
+import EmbeddingPairs
+
+-- The generated benchmark uses the four-symbol alphabet shared with LCS.
+fn generated_symbols : List(Uint64) -> List(Uint64)
+generated_symbols nil = nil
+generated_symbols (cons word rest) = cons (Uint64.rem word 4u64) (generated_symbols rest)
+
+proc main : Unit
+main =
+  let usage = "usage: embedding-pairs <left-count> [values...] | <left-count> --generate [total-count [seed]]" in
+  match bench_argument 1i64 with
+    nothing -> bench_usage usage
+    just split -> match bench_input 2i64 400u64 42u64 with
+      nothing -> bench_usage usage
+      just words ->
+        let generated = match cli_argument_nth (cli_arguments !cli_process) 2i64 with
+          just text -> String.eq text "--generate"
+          nothing -> false
+        end in
+        let symbols = if generated then generated_symbols words else words in
+        bench_print (benchmark (bench_take split symbols) (bench_drop split symbols))
+    end
+  end

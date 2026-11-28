@@ -1,0 +1,31 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import FreeTrace
+
+proc usage : Unit
+usage = sigfpe_usage "usage: free-trace a b c seed [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 5i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just a ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just b ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just c ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just seed ->
+              sigfpe_print (sigfpe_repeat reps (\i -> trace_digest (Int64.add a i) (Int64.add b i) (Int64.add c i) (Int64.add seed i)))
+            end
+          end
+        end
+      end
+  end

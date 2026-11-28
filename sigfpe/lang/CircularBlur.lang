@@ -1,0 +1,43 @@
+import Lang.Prelude
+
+-- A focused array exposes observation by position; the frame is circular.
+codata Frame where
+  pixel : Frame -> Int64 -> Int64
+end
+
+fn frame4 : Int64 -> Int64 -> Int64 -> Int64 -> Frame
+pixel (frame4 a b c d) i =
+  if Int64.eq i 0i64 then a else if Int64.eq i 1i64 then b else
+    if Int64.eq i 2i64 then c else d
+
+fn map_frame : (Int64 -> Int64) -> Frame -> Frame
+pixel (map_frame f source) i = f (pixel source i)
+
+-- Like comonadic extend, apply one contextual rule at every possible focus.
+fn extend_frame : (Frame -> Int64 -> Int64) -> Frame -> Frame
+pixel (extend_frame f source) i = f source i
+
+fn blur_numerator : Frame -> Int64 -> Int64
+blur_numerator source i =
+  let left = Int64.rem (Int64.add i 3i64) 4i64 in
+  let right = Int64.rem (Int64.add i 1i64) 4i64 in
+  Int64.add (pixel source left)
+    (Int64.add (Int64.mul 2i64 (pixel source i)) (pixel source right))
+
+fn brighten : Int64 -> Int64
+brighten value = Int64.add value 1i64
+
+fn double_pixel : Int64 -> Int64
+double_pixel value = Int64.mul value 2i64
+
+fn square_pixel : Int64 -> Int64
+square_pixel value = Int64.mul value value
+
+fn focused_blur : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64
+focused_blur a b c d focus = the Int64 in
+  let input = frame4 a b c d in
+  let bright = map_frame brighten input in
+  let blurred = extend_frame blur_numerator bright in
+  let doubled = map_frame double_pixel blurred in
+  let squared = map_frame square_pixel doubled in
+  pixel squared focus

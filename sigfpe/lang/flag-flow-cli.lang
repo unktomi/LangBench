@@ -1,0 +1,41 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import FlagFlow
+
+proc usage : Unit
+usage = sigfpe_usage "usage: flag-flow a b adjustment initial replacement coordinate (initial/replacement: zero or nonzero; coordinate: 0 or 1) [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 7i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just a ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just b ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just adjustment ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just initial ->
+              match sigfpe_argument 5i64 with
+                nothing -> usage
+                just replacement ->
+                match sigfpe_argument 6i64 with
+                  nothing -> usage
+                  just coordinate ->
+                  if sigfpe_binary_index coordinate then
+                    sigfpe_print (sigfpe_repeat reps (\i -> observe_flow (Int64.add a i) (Int64.add b i) (Int64.add adjustment i) initial replacement coordinate))
+                  else usage
+                end
+              end
+            end
+          end
+        end
+      end
+  end

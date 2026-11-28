@@ -1,0 +1,12 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Data.List.Core
+import BenchmarkInput
+import SortedFirst
+
+proc main : Unit
+main =
+  match bench_input 1i64 240000u64 42u64 with
+    nothing -> bench_usage "usage: sorted-first [values...] | --generate [count [seed]] (defaults 240000 42; no arguments: empty list returns 0)"
+    just values -> bench_print (benchmark values)
+  end

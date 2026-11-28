@@ -1,0 +1,41 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import WeightedDictionary
+
+proc usage : Unit
+usage = sigfpe_usage "usage: weighted-dictionary a b c d key-index value-index (indices: 0 or 1) [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 7i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just a ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just b ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just c ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just d ->
+              match sigfpe_argument 5i64 with
+                nothing -> usage
+                just key_index ->
+                match sigfpe_argument 6i64 with
+                  nothing -> usage
+                  just value_index ->
+                  if Bool.and (sigfpe_binary_index key_index) (sigfpe_binary_index value_index) then
+                    sigfpe_print (sigfpe_repeat reps (\i -> dictionary_observe (Int64.add a i) (Int64.add b i) (Int64.add c i) (Int64.add d i) key_index value_index))
+                  else usage
+                end
+              end
+            end
+          end
+        end
+      end
+  end

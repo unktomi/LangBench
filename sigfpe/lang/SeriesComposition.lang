@@ -1,0 +1,38 @@
+import Lang.Prelude
+import Lang.Data.Stream
+
+fn repeat_coefficient : Int64 -> Stream(Int64)
+stream_head (repeat_coefficient a) = a
+stream_tail (repeat_coefficient a) = repeat_coefficient a
+
+fn prepend_coefficient : Int64 -> Stream(Int64) -> Stream(Int64)
+stream_head (prepend_coefficient a rest) = a
+stream_tail (prepend_coefficient a rest) = rest
+
+fn add_series : Stream(Int64) -> Stream(Int64) -> Stream(Int64)
+stream_head (add_series left right) = Int64.add (stream_head left) (stream_head right)
+stream_tail (add_series left right) = add_series (stream_tail left) (stream_tail right)
+
+fn scale_series : Int64 -> Stream(Int64) -> Stream(Int64)
+stream_head (scale_series a source) = Int64.mul a (stream_head source)
+stream_tail (scale_series a source) = scale_series a (stream_tail source)
+
+-- Ordinary generating functions: each coefficient is a Cauchy convolution.
+fn multiply_series : Stream(Int64) -> Stream(Int64) -> Stream(Int64)
+stream_head (multiply_series left right) = Int64.mul (stream_head left) (stream_head right)
+stream_tail (multiply_series left right) =
+  add_series (scale_series (stream_head left) (stream_tail right))
+    (multiply_series (stream_tail left) right)
+
+-- inner_tail represents h when the series substituted into outer is z*h.
+fn compose_series : Stream(Int64) -> Stream(Int64) -> Stream(Int64)
+stream_head (compose_series outer inner_tail) = stream_head outer
+stream_tail (compose_series outer inner_tail) =
+  multiply_series inner_tail (compose_series (stream_tail outer) inner_tail)
+
+fn composed_fourth : Int64 -> Int64 -> Int64 -> Int64 -> Int64
+composed_fourth a b c d = the Int64 in
+  let outer = prepend_coefficient a (prepend_coefficient b (repeat_coefficient c)) in
+  let inner_tail = prepend_coefficient d (repeat_coefficient 1i64) in
+  let composed = compose_series outer inner_tail in
+  stream_head (stream_tail (stream_tail (stream_tail (stream_tail composed))))

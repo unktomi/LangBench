@@ -1,0 +1,56 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import DerivativeFlipDirect
+import SigfpeCli
+
+type CliPolynomial = SigfpeExpr(Int64, Int64)
+
+-- Reverse prefix parsing. Every token is fetched from argv, and every
+-- reduction builds the original recursive constructor with its two children.
+proc runtime_tree_push : String -> List(CliPolynomial) -> Maybe(List(CliPolynomial))
+runtime_tree_push token pending =
+  if Bool.or (String.eq token "+") (String.eq token "*") then
+    match pending with
+      cons left (cons right rest) ->
+        let expression = if String.eq token "+"
+          then sigfpe_add left right else sigfpe_mul left right in
+        just (cons expression rest)
+      _ -> nothing
+    end
+  else if String.eq token "x" then just (cons (sigfpe_var 0i64) pending)
+  else if String.eq token "y" then just (cons (sigfpe_var 1i64) pending)
+  else match sigfpe_word token with
+    nothing -> nothing
+    just word -> just (cons (sigfpe_lit word) pending)
+  end
+
+proc runtime_tree_arguments : Int64 -> Maybe(CliPolynomial)
+runtime_tree_arguments count =
+  let mut index = count in
+  let mut pending : List(CliPolynomial) = nil in
+  while decoded : Maybe(CliPolynomial) in true begin
+    if Int64.le index 2i64 then
+      match pending with
+        cons expression nil -> break[decoded] (just expression)
+        _ -> break[decoded] nothing
+      end
+    else {
+      index := Int64.sub index 1i64;
+      match cli_argument_nth (cli_arguments !cli_process) index with
+        nothing -> break[decoded] nothing
+        just token -> match runtime_tree_push token pending with
+          nothing -> break[decoded] nothing
+          just next -> { pending := next; () }
+        end
+      end
+    }
+  end
+
+-- The optional repetition suffix is not a polynomial token.
+proc runtime_tree_end : Int64 -> Int64
+runtime_tree_end count =
+  if Int64.lt count 5i64 then count
+  else match cli_argument_nth (cli_arguments !cli_process) (Int64.sub count 2i64) with
+    nothing -> count
+    just option -> if String.eq option "--repeat" then Int64.sub count 2i64 else count
+  end

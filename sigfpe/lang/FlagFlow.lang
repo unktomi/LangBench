@@ -1,0 +1,34 @@
+import Lang.Prelude
+
+-- A first-order form of Get/Put/Return with a Boolean cell. Giving both
+-- read branches as subtrees is equivalent to a Boolean continuation.
+data Flow(A : Type) where
+  answer : A -> Flow(A)
+  write_flag : Bool -> Flow(A) -> Flow(A)
+  read_flag : Flow(A) -> Flow(A) -> Flow(A)
+end
+
+fn graft : Flow(A) -> (A -> Flow(B)) -> Flow(B)
+graft (answer value) next = next value
+graft (write_flag flag rest) next = write_flag flag (graft rest next)
+graft (read_flag clear set) next = read_flag (graft clear next) (graft set next)
+
+fn perform : Flow(Int64) -> Bool -> Int64 * Bool
+perform (answer value) flag = (value, flag)
+perform (write_flag replacement rest) flag = perform rest replacement
+perform (read_flag clear set) flag = if flag then perform set flag else perform clear flag
+
+fn choose_initial : Int64 -> Int64 -> Flow(Int64)
+choose_initial clear set = read_flag (write_flag true (answer clear)) (write_flag false (answer set))
+
+fn after_choice : Int64 -> Bool -> Int64 -> Flow(Int64)
+after_choice adjustment replacement previous =
+  read_flag (answer (Int64.add previous adjustment))
+    (write_flag replacement (answer (Int64.mul previous adjustment)))
+
+fn observe_flow : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64
+observe_flow a b adjustment initial replacement coordinate = the Int64 in
+  let tree = graft (choose_initial a b)
+    (after_choice adjustment (Int64.ne replacement 0i64)) in
+  let (value, flag) = perform tree (Int64.ne initial 0i64) in
+  if Int64.eq coordinate 0i64 then value else if flag then 1i64 else 0i64

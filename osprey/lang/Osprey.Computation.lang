@@ -1,0 +1,36 @@
+import Lang.Prelude
+
+-- One observation either returns an answer or exposes a suspended continuation.
+data ComputationStep(A : Type, X : Type) where
+  computation_finished : A -> ComputationStep(A, X)
+  computation_pending : X -> ComputationStep(A, X)
+end
+
+codata Computation(A : Type) where
+  computation_step : Computation(A) -> ComputationStep(A, Computation(A))
+end
+
+fn computation_map : (A -> B) -> Computation(A) -> Computation(B)
+computation_step (computation_map transform source) =
+  match computation_step source with
+    computation_finished value -> computation_finished (transform value)
+    computation_pending rest -> computation_pending (computation_map transform rest)
+  end
+
+fn computation_bind : Computation(A) -> (A -> Computation(B)) -> Computation(B)
+computation_step (computation_bind source following) =
+  match computation_step source with
+    computation_finished value -> computation_step (following value)
+    computation_pending rest -> computation_pending (computation_bind rest following)
+  end
+
+-- The terminal observer requests successive layers until the source answers.
+fn computation_run : Computation(A) -> A
+computation_run source =
+  let mut current = source in
+  while answer : A in true begin
+    match computation_step current with
+      computation_finished value -> break[answer] value
+      computation_pending rest -> { current := rest; () }
+    end
+  end

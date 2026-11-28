@@ -1,0 +1,42 @@
+import Lang.Prelude
+
+-- A two-coordinate key/value basis and its tensor product. These operations
+-- construct both components (and both tensor rows) before the final read.
+data BasisVector where
+  coordinates : Int64 -> Int64 -> BasisVector
+end
+data WeightedDictionary where
+  rows : BasisVector -> BasisVector -> WeightedDictionary
+end
+
+fn vector_scale : Int64 -> BasisVector -> BasisVector
+vector_scale weight (coordinates a b) =
+  coordinates (Int64.mul weight a) (Int64.mul weight b)
+
+fn vector_add : BasisVector -> BasisVector -> BasisVector
+vector_add (coordinates a b) (coordinates c d) =
+  coordinates (Int64.add a c) (Int64.add b d)
+
+fn tensor : BasisVector -> BasisVector -> WeightedDictionary
+tensor (coordinates a b) value = rows (vector_scale a value) (vector_scale b value)
+
+fn dictionary_add : WeightedDictionary -> WeightedDictionary -> WeightedDictionary
+dictionary_add (rows earlier0 earlier1) (rows added0 added1) =
+  rows (vector_add earlier0 added0) (vector_add earlier1 added1)
+
+fn dictionary_insert : WeightedDictionary -> BasisVector -> BasisVector -> WeightedDictionary
+dictionary_insert prior key value = dictionary_add prior (tensor key value)
+
+fn vector_at : BasisVector -> Int64 -> Int64
+vector_at (coordinates a b) axis = if Int64.eq axis 0i64 then a else b
+
+fn dictionary_at : WeightedDictionary -> Int64 -> Int64 -> Int64
+dictionary_at (rows a b) key_index value_index =
+  if Int64.eq key_index 0i64 then vector_at a value_index else vector_at b value_index
+
+fn dictionary_observe : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64
+dictionary_observe a b c d key_index value_index = the Int64 in
+  let empty = rows (coordinates 0i64 0i64) (coordinates 0i64 0i64) in
+  let first = dictionary_insert empty (coordinates a b) (coordinates c d) in
+  let second = dictionary_insert first (coordinates 1i64 d) (coordinates b (-1i64)) in
+  dictionary_at second key_index value_index

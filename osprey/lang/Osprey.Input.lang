@@ -1,0 +1,60 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.IO.TextInput
+import Lang.Control.Finalize
+import Lang.Cli.Random
+
+fn osprey_space : Uint32 -> Bool
+osprey_space code =
+  if Bool.and (code >= 9u32) (code <= 13u32) then true
+  else if code == 32u32 then true
+  else if code == 133u32 then true
+  else if code == 160u32 then true
+  else if code == 5760u32 then true
+  else if Bool.and (code >= 8192u32) (code <= 8202u32) then true
+  else if code == 8232u32 then true
+  else if code == 8233u32 then true
+  else if code == 8239u32 then true
+  else if code == 8287u32 then true
+  else (code == 12288u32)
+
+-- Rust's trimmed signed-i64 seed selector, observed one Unicode scalar at a time.
+-- phase: 0 = leading space, 1 = sign, 2 = digits, 3 = trailing space, 4 = rejected.
+-- Even a rejected token consumes its line before the caller observes a seed.
+-- Only a nonzero, in-range integer on the first line requests entropy.
+proc osprey_seed_requested : Unit -> Bool
+osprey_seed_requested () =
+  let mut bytes : NativeSlice(Uint8Array, Uint8) = native_slice_allocate 256i64 in
+  let mut position = 0i64 in
+  let mut available = 0i64 in
+  let mut phase = 0u32 in
+  let mut magnitude = 0u64 in
+  let mut limit = 9223372036854775807u64 in
+  while done : Bool in true begin
+    let (((((successor, !destination), !next), !last), !_), result) = read_text_observation false bytes position available cli_stdin in
+    let _ : CliIoResult(Unit) = finalize successor in {
+      bytes := destination;
+      position := next;
+      available := last;
+      match result with
+        cli_io_err _ -> break[done] false
+        cli_io_ok nothing -> break[done] (Bool.and (Uint32.ne phase 4u32) (Uint64.ne magnitude 0u64))
+        cli_io_ok (just code) ->
+          if Uint32.eq code 10u32 then break[done] (Bool.and (Uint32.ne phase 4u32) (Uint64.ne magnitude 0u64))
+          else if Uint32.eq phase 4u32 then ()
+          else if osprey_space code then
+            if Uint32.eq phase 1u32 then { phase := 4u32; () }
+            else if Uint32.eq phase 2u32 then { phase := 3u32; () } else ()
+          else if Bool.and (Uint32.eq phase 0u32) (Bool.or (Uint32.eq code 45u32) (Uint32.eq code 43u32)) then
+            { phase := 1u32; if Uint32.eq code 45u32 then { limit := 9223372036854775808u64; () } else (); () }
+          else if Bool.or (Uint32.eq phase 3u32) (Bool.or (Uint32.lt code 48u32) (Uint32.gt code 57u32)) then { phase := 4u32; () }
+          else let digit = Uint64.from_uint32 (Uint32.sub code 48u32) in
+            if Uint64.gt magnitude (Uint64.div (Uint64.sub limit digit) 10u64) then { phase := 4u32; () }
+            else { magnitude := Uint64.add (Uint64.mul magnitude 10u64) digit; phase := 2u32; () }
+      end
+    }
+  end
+
+proc osprey_read_seed : Unit -> Uint64
+osprey_read_seed () =
+  if osprey_seed_requested () then Uint64.add (Uint64.rem (random_sample cli_process) 2147483646u64) 1u64 else 1u64

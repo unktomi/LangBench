@@ -1,0 +1,21 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Data.List.Core
+
+fn insert : Uint64 -> List(Uint64) -> List(Uint64)
+insert x nil = cons x nil
+insert x (cons y ys) =
+  if x <= y then cons x (cons y ys) else cons y (insert x ys)
+
+fn sort : List(Uint64) -> List(Uint64)
+sort nil = nil
+sort (cons x xs) = insert x (sort xs)
+
+fn first : List(Uint64) -> Uint64
+first nil = 0u64
+first (cons x xs) = x
+
+fn benchmark : List(Uint64) -> Uint64
+benchmark values = the Uint64 in first (sort values)

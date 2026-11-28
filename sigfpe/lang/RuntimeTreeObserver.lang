@@ -1,0 +1,27 @@
+import Lang.Prelude
+import Lang.Data.Stream
+import Lang.Universal.Representations.DerivativeSeries
+import DerivativeFlipDirect
+
+-- Interpret all nodes of the same runtime AST with the stock derivative
+-- series algebra. No shape is selected, pruned, or pre-expanded by the caller.
+fn runtime_tree_variable : Int -> Stream(Int)
+stream_head (runtime_tree_variable origin) = origin
+stream_tail (runtime_tree_variable origin) = derivative_series 0
+
+fn runtime_tree_series : SigfpeExpr(Int64, Int64) -> Int64 -> Stream(Int)
+runtime_tree_series (sigfpe_var variable) axis =
+  if Int64.eq variable axis then runtime_tree_variable 0
+  else derivative_scale 0 (derivative_series 0)
+runtime_tree_series (sigfpe_lit value) axis =
+  derivative_scale (Int64.to_int value) (derivative_series 0)
+runtime_tree_series (sigfpe_add left right) axis =
+  derivative_add (runtime_tree_series left axis) (runtime_tree_series right axis)
+runtime_tree_series (sigfpe_mul left right) axis =
+  derivative_shuffle (runtime_tree_series left axis) (runtime_tree_series right axis)
+
+fn runtime_tree_observed : SigfpeExpr(Int64, Int64) -> Int64
+runtime_tree_observed expression = the Int64 in Int64.from_int (the Int in
+  Int.add
+    (derivative_coefficient 2 (runtime_tree_series expression 0i64))
+    (derivative_coefficient 2 (runtime_tree_series expression 1i64)))

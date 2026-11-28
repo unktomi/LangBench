@@ -1,0 +1,65 @@
+import Osprey.Input
+import Osprey.Repeat
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Product
+import Product.ProductOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Mod
+import Mod.ModOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Cli.Text
+import Lang.Text.MachineFormat
+import Lang.Data.List
+import Lang.Codata.FiniteMap
+
+fn range : Uint64 -> Uint64 -> List(Uint64)
+range first last =
+  if first > last then nil
+  else cons first (if first == last then nil else range (first + 1u64) last)
+
+fn random_step : Uint64 -> Uint64
+random_step value = (value * 16807u64) % 2147483647u64
+
+fn hash_at : Uint64 -> Uint64 -> Uint64
+hash_at seed index = random_step (random_step (seed + index))
+
+fn word : Uint64 -> String
+word index = match index with
+  0u64 -> "the"
+  1u64 -> "quick"
+  2u64 -> "brown"
+  3u64 -> "fox"
+  4u64 -> "jumps"
+  5u64 -> "over"
+  6u64 -> "lazy"
+  _ -> "dog"
+end
+
+fn increment : Maybe(Uint64) -> Maybe(Uint64)
+increment nothing = just 1u64
+increment (just count) = just (count + 1u64)
+
+fn weighted_count : FiniteMap(String, Uint64) -> Uint64 -> Uint64
+weighted_count counts index = match finite_map_get counts (word index) with
+  nothing -> 0u64
+  just count -> (index + 1u64) * count
+end
+
+fn benchmark : Uint64 -> Uint64
+benchmark seed =
+  let counts = list_fold_left (\counts index -> finite_map_alter increment (word (hash_at seed index % 8u64)) counts) finite_map_empty (range 0u64 199999u64) in
+  list_fold_left (\total index -> total + weighted_count counts index) 0u64 (range 0u64 7u64)
+
+proc main : Unit
+main =
+  let reps = osprey_repetitions () in
+  let seed = osprey_read_seed () in
+  let _ = cli_write_line cli_stdout
+    (integer_render integer_u64 radix_decimal (osprey_repeat reps seed (\s -> the Uint64 in benchmark s))) in ()

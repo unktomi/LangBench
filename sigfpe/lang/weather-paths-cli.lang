@@ -1,0 +1,55 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import WeatherPaths
+
+fn weather_cost_input : Int64 -> Bool
+weather_cost_input cost = Bool.and (Int64.ge cost (-1048576i64)) (Int64.le cost 1048576i64)
+
+proc usage : Unit
+usage = sigfpe_usage "usage: weather-paths rr rs sr ss a b c d (each cost: -1048576..1048576) [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 9i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just rr ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just rs ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just sr ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just ss ->
+              match sigfpe_argument 5i64 with
+                nothing -> usage
+                just a ->
+                match sigfpe_argument 6i64 with
+                  nothing -> usage
+                  just b ->
+                  match sigfpe_argument 7i64 with
+                    nothing -> usage
+                    just c ->
+                    match sigfpe_argument 8i64 with
+                      nothing -> usage
+                      just d ->
+                      if (Bool.and (Bool.and (Bool.and (weather_cost_input rr) (weather_cost_input rs))
+                                 (Bool.and (weather_cost_input sr) (weather_cost_input ss)))
+                       (Bool.and (Bool.and (weather_cost_input a) (weather_cost_input b))
+                                 (Bool.and (weather_cost_input c) (weather_cost_input d)))) then
+                        sigfpe_print (sigfpe_repeat reps (\i -> best_weather_cost (sigfpe_repeat_cost rr i) (sigfpe_repeat_cost rs i) (sigfpe_repeat_cost sr i) (sigfpe_repeat_cost ss i) (sigfpe_repeat_cost a i) (sigfpe_repeat_cost b i) (sigfpe_repeat_cost c i) (sigfpe_repeat_cost d i)))
+                      else usage
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+  end

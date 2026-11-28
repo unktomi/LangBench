@@ -1,0 +1,93 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Product
+import Product.ProductOps
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Data.List.Core
+import Lang.Cli.Process
+import Lang.Cli.Text
+import Lang.Text.MachineParse
+
+-- Input support only. Kernels also accept arbitrary values supplied on argv.
+fn bench_sample : Uint64 -> Uint64
+bench_sample seed =
+  let a = (Uint64.bit_xor seed (Uint64.shift_right seed 30u64) * 13787848793156543929u64) in
+  let b = (Uint64.bit_xor a (Uint64.shift_right a 27u64) * 10723151780598845931u64) in
+  Uint64.bit_xor b (Uint64.shift_right b 31u64)
+
+fn bench_generate : Uint64 -> Uint64 -> List(Uint64)
+bench_generate count seed =
+  if count == 0u64 then nil else
+  let next = (seed + 11400714819323198485u64) in
+  cons (bench_sample next) (bench_generate (count - 1u64) next)
+
+fn bench_length : List(Uint64) -> Uint64
+bench_length nil = 0u64
+bench_length (cons x xs) = (1u64 + bench_length xs)
+
+fn bench_take : Uint64 -> List(Uint64) -> List(Uint64)
+bench_take count nil = nil
+bench_take count (cons x xs) =
+  if count == 0u64 then nil else cons x (bench_take (count - 1u64) xs)
+
+fn bench_drop : Uint64 -> List(Uint64) -> List(Uint64)
+bench_drop count nil = nil
+bench_drop count (cons x xs) =
+  if count == 0u64 then cons x xs else bench_drop (count - 1u64) xs
+
+proc bench_argument : Int64 -> Maybe(Uint64)
+bench_argument index =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> nothing
+    just text -> integer_parse_digits integer_u64 radix_decimal 18446744073709551615u64 false text 0i64
+  end
+
+-- An optional positional argument: absent -> the default, present -> must parse.
+proc bench_argument_or : Int64 -> Uint64 -> Maybe(Uint64)
+bench_argument_or index fallback =
+  if cli_argument_count_native () <= index then just fallback else bench_argument index
+
+proc bench_values_from : Int64 -> Int64 -> List(Uint64) -> Maybe(List(Uint64))
+bench_values_from count start rest =
+  if count <= 0i64 then just rest else
+  match bench_argument (start + (count - 1i64)) with
+    nothing -> nothing
+    just value -> bench_values_from (count - 1i64) start (cons value rest)
+  end
+
+proc bench_values : Int64 -> Maybe(List(Uint64))
+bench_values start = bench_values_from (cli_argument_count_native () - start) start nil
+
+-- Either all remaining arguments are values, or: --generate [count [seed]],
+-- where an absent count or seed takes the supplied default.
+proc bench_input : Int64 -> Uint64 -> Uint64 -> Maybe(List(Uint64))
+bench_input index default_count default_seed =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> just nil
+    just text -> if String.eq text "--generate" then
+      if cli_argument_count_native () > (index + 3i64) then nothing else
+      match bench_argument_or (index + 1i64) default_count with
+        nothing -> nothing
+        just count -> if count > 1048576u64 then nothing else
+          match bench_argument_or (index + 2i64) default_seed with
+            nothing -> nothing
+            just seed -> just (bench_generate count seed)
+          end
+      end
+      else bench_values index
+  end
+
+proc bench_print : Uint64 -> Unit
+bench_print value =
+  let _ = cli_write_line cli_stdout (integer_render integer_u64 radix_decimal value) in ()
+
+proc bench_usage : String -> Unit
+bench_usage message =
+  let _ = cli_write_line cli_stderr message in absurd (cli_exit cli_process 2i64)

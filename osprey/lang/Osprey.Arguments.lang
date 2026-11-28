@@ -1,0 +1,14 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import Lang.Text.MachineParse
+
+proc osprey_argument : Int64 -> Uint64
+osprey_argument index =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> absurd (cli_exit cli_process 2i64)
+    just text ->
+      match integer_parse_digits integer_u64 radix_decimal 18446744073709551615u64 false text 0i64 with
+        nothing -> absurd (cli_exit cli_process 2i64)
+        just value -> value
+      end
+  end

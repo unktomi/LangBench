@@ -1,0 +1,62 @@
+import Lang.Prelude
+import Lang.Data.List.Core
+import BenchmarkInput
+
+data Tape where
+  tape_nil : Tape
+  tape_cons : Uint64 -o Uint64 -o Tape -o Tape
+end
+
+-- Input preparation remains outside `the`.
+-- Each word encodes a label and a per-token gap cost.
+fn make_tape : List(Uint64) -> Tape
+make_tape nil = tape_nil
+make_tape (cons word rest) =
+  let label = Uint64.rem word 4u64 in
+  let gap = Uint64.add 1u64
+    (Uint64.rem (Uint64.shift_right word 2u64) 7u64) in
+  tape_cons label gap (make_tape rest)
+
+fn cheaper : Uint64 -> Uint64 -> Uint64
+cheaper a b = if Uint64.gt a b then b else a
+
+fn alignment_cost : Tape -> Tape -> Uint64
+alignment_cost left right =
+  match left with
+    tape_nil -> match right with
+      tape_nil -> 0u64
+      tape_cons y cy ys ->
+        Uint64.add cy (alignment_cost tape_nil ys)
+    end
+    tape_cons x cx xs -> match right with
+      tape_nil ->
+        Uint64.add cx (alignment_cost xs tape_nil)
+      tape_cons y cy ys ->
+        let drop_left =
+          Uint64.add cx (alignment_cost xs right) in
+        let drop_right =
+          Uint64.add cy (alignment_cost left ys) in
+        let toll = if Uint64.eq x y then 0u64 else
+          Uint64.add 2u64
+            (Uint64.rem (Uint64.mul cx cy) 5u64) in
+        let diagonal =
+          Uint64.add toll (alignment_cost xs ys) in
+        cheaper diagonal (cheaper drop_left drop_right)
+    end
+  end
+
+fn benchmark : Tape -> Tape -> Uint64
+benchmark left right = the Uint64 in alignment_cost left right
+
+proc main : Unit
+main =
+  let usage = "usage: weighted-alignment <left-count> [values...] | <left-count> --generate [total-count [seed]]" in
+  match bench_argument 1i64 with
+    nothing -> bench_usage usage
+    just split -> match bench_input 2i64 361u64 43u64 with
+      nothing -> bench_usage usage
+      just words -> bench_print (benchmark
+        (make_tape (bench_take split words))
+        (make_tape (bench_drop split words)))
+    end
+  end

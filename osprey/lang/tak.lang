@@ -1,0 +1,30 @@
+import Osprey.Computation
+import Osprey.Arguments
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Cli.Text
+import Lang.Text.MachineFormat
+
+fn tak : Int64 -> Int64 -> Int64 -> Computation(Int64)
+computation_step (tak x y z) =
+  if x > y then computation_pending
+    (computation_bind (tak (x - 1i64) y z) (\first ->
+      computation_bind (tak (y - 1i64) z x) (\second ->
+        computation_bind (tak (z - 1i64) x y) (\third ->
+          tak first second third))))
+  else computation_finished z
+
+fn benchmark : Int64 -> Int64 -> Int64 -> Int64
+benchmark x y z = computation_run (tak x y z)
+
+proc main : Unit
+main = the Unit in
+  let parameter_1 = osprey_argument 1i64 in
+  let parameter_2 = osprey_argument 2i64 in
+  let parameter_3 = osprey_argument 3i64 in
+  let _ = cli_write_line cli_stdout
+  (integer_render integer_i64 radix_decimal (benchmark (Int64.from_uint64 parameter_1) (Int64.from_uint64 parameter_2) (Int64.from_uint64 parameter_3))) in ()

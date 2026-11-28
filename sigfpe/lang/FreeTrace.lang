@@ -1,0 +1,30 @@
+import Lang.Prelude
+
+-- A free program over the single operation "emit one event".
+data Trace(A : Type) where
+  finish : A -> Trace(A)
+  emit : Int64 -> Trace(A) -> Trace(A)
+end
+
+fn trace_bind : Trace(A) -> (A -> Trace(B)) -> Trace(B)
+trace_bind (finish value) next = next value
+trace_bind (emit event tail) next = emit event (trace_bind tail next)
+
+fn event_pair : Int64 -> Int64 -> Int64 -> Trace(Int64)
+event_pair first second result = emit first (emit second (finish result))
+
+fn source_trace : Int64 -> Int64 -> Int64 -> Trace(Int64)
+source_trace a b c =
+  trace_bind
+    (trace_bind (event_pair a b (Int64.add a c))
+      (\previous -> event_pair previous c (Int64.mul previous b)))
+    (\previous -> emit (Int64.sub previous c) (finish previous))
+
+-- A rolling digest makes event order observable without returning a list.
+fn observe_trace : Trace(Int64) -> Int64 -> Int64
+observe_trace (finish value) digest = Int64.add (Int64.mul 31i64 digest) value
+observe_trace (emit event tail) digest =
+  observe_trace tail (Int64.add (Int64.mul 31i64 digest) event)
+
+fn trace_digest : Int64 -> Int64 -> Int64 -> Int64 -> Int64
+trace_digest a b c seed = the Int64 in observe_trace (source_trace a b c) seed

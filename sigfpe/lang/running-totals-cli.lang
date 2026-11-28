@@ -1,0 +1,31 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import SigfpeCli
+import RunningTotals
+
+proc usage : Unit
+usage = sigfpe_usage "usage: running-totals initial first increment position [--repeat N]"
+
+proc main : Unit
+main =
+  match sigfpe_repetitions 5i64 with
+    nothing -> usage
+    just reps ->
+      match sigfpe_argument 1i64 with
+        nothing -> usage
+        just initial ->
+        match sigfpe_argument 2i64 with
+          nothing -> usage
+          just first ->
+          match sigfpe_argument 3i64 with
+            nothing -> usage
+            just increment ->
+            match sigfpe_argument 4i64 with
+              nothing -> usage
+              just position ->
+              sigfpe_print (sigfpe_repeat reps (\i -> running_balance initial (Int64.add first i) increment position))
+            end
+          end
+        end
+      end
+  end

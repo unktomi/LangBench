@@ -1,0 +1,34 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Mod
+import Mod.ModOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Cli.Process
+import BenchmarkInput
+
+-- Construct the entire recursive word before observing its UTF-16 length.
+-- The source does not supply a length recurrence or a closed-form answer.
+fn words : Int64 -> String
+words n =
+  if n <= 0i64 then "end" else
+  String.concat (words (n - 1i64))
+    (if (n % 2i64) == 0i64 then "😀" else "x")
+
+fn raw_length : Int64 -> Int64
+raw_length n = the Int64 in String.length64 (words n)
+
+proc main : Unit
+main =
+  if cli_argument_count_native () > 2i64 then
+    bench_usage "usage: string-length [recursive depth, 0..65536] (default 65536)"
+  else match bench_argument_or 1i64 65536u64 with
+    nothing -> bench_usage "usage: string-length [recursive depth, 0..65536] (default 65536)"
+    just depth -> if depth > 65536u64 then
+      bench_usage "usage: string-length [recursive depth, 0..65536] (default 65536)"
+      else bench_print (Uint64.from_int64 (raw_length (Int64.from_uint64 depth)))
+  end

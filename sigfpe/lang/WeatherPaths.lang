@@ -1,0 +1,48 @@
+import Lang.Prelude
+
+data Weather where
+  rainy : Weather
+  sunny : Weather
+end
+
+data TransitionCosts where
+  transition_costs : Int64 -> Int64 -> Int64 -> Int64 -> TransitionCosts
+end
+
+data Observations where
+  no_more : Observations
+  observed : Int64 -> Int64 -> Observations -> Observations
+end
+
+data PathTree where
+  accepted : PathTree
+  alternatives : Int64 -> PathTree -> Int64 -> PathTree -> PathTree
+end
+
+fn cost : TransitionCosts -> Weather -> Weather -> Int64
+cost (transition_costs rr rs sr ss) rainy rainy = rr
+cost (transition_costs rr rs sr ss) rainy sunny = rs
+cost (transition_costs rr rs sr ss) sunny rainy = sr
+cost (transition_costs rr rs sr ss) sunny sunny = ss
+
+-- Source enumerates both extensions; no frontier merging or memoization.
+fn enumerate_suffix : Observations -> TransitionCosts -> Weather -> PathTree
+enumerate_suffix no_more transitions start = accepted
+enumerate_suffix (observed wet dry rest) transitions start =
+  alternatives
+    (Int64.add (cost transitions start rainy) wet) (enumerate_suffix rest transitions rainy)
+    (Int64.add (cost transitions start sunny) dry) (enumerate_suffix rest transitions sunny)
+
+fn cheapest : PathTree -> Int64
+cheapest accepted = 0i64
+cheapest (alternatives a left b right) =
+  let x = Int64.add a (cheapest left) in
+  let y = Int64.add b (cheapest right) in
+  if Int64.le x y then x else y
+
+fn best_weather_cost : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> Int64
+best_weather_cost rr rs sr ss a b c d = the Int64 in
+  let transitions = transition_costs rr rs sr ss in
+  let later = observed b c (observed d 0i64 (observed 0i64 0i64 no_more)) in
+  cheapest (alternatives 0i64 (enumerate_suffix later transitions rainy)
+    a (enumerate_suffix later transitions sunny))

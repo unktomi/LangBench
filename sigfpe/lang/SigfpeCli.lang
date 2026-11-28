@@ -1,0 +1,73 @@
+import Lang.Prelude
+import Lang.Cli.Process
+import Lang.Cli.Text
+import Lang.Text.MachineParse
+import Lang.Text.MachineFormat
+
+fn sigfpe_binary_index : Int64 -> Bool
+sigfpe_binary_index index =
+  Bool.or (Int64.eq index 0i64) (Int64.eq index 1i64)
+
+-- Parse signed decimal words without intermediate signed overflow.
+proc sigfpe_word : String -> Maybe(Int64)
+sigfpe_word text =
+  if Int64.eq (String.length64 text) 0i64 then nothing else
+  let first = String.char_code64 text 0i64 in
+  let negative = Uint16.eq first 45u16 in
+  let limit = if negative then 9223372036854775808u64 else 9223372036854775807u64 in
+  let start = if Bool.or negative (Uint16.eq first 43u16) then 1i64 else 0i64 in
+  match integer_parse_digits integer_u64 radix_decimal limit false text start with
+    nothing -> nothing
+    just magnitude ->
+      let word = Int64.from_uint64 magnitude in
+      just (if negative then Int64.sub 0i64 word else word)
+  end
+
+proc sigfpe_argument : Int64 -> Maybe(Int64)
+sigfpe_argument index =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> nothing
+    just text -> sigfpe_word text
+  end
+
+proc sigfpe_print : Int64 -> Unit
+sigfpe_print value =
+  let _ = cli_write_line cli_stdout (integer_render integer_i64 radix_decimal value) in ()
+
+proc sigfpe_usage : String -> Unit
+sigfpe_usage message =
+  let _ = cli_write_line cli_stderr message in absurd (cli_exit cli_process 2i64)
+
+proc sigfpe_repetitions : Int64 -> Maybe(Int64)
+sigfpe_repetitions end_index =
+  let count = cli_argument_count_native () in
+  if Int64.eq count end_index then just 1i64
+  else if Int64.ne count (Int64.add end_index 2i64) then nothing
+  else match cli_argument_nth (cli_arguments !cli_process) end_index with
+    nothing -> nothing
+    just option ->
+      if String.eq option "--repeat" then
+        match sigfpe_argument (Int64.add end_index 1i64) with
+          nothing -> nothing
+          just reps -> if Bool.and (Int64.gt reps 0i64) (Int64.le reps 100000000i64)
+            then just reps else nothing
+        end
+      else nothing
+  end
+
+fn sigfpe_repeat : Int64 -> (Int64 -> Int64) -> Int64
+sigfpe_repeat reps observe =
+  let mut i = 0i64 in
+  let mut checksum = 0i64 in
+  while repeated : Int64 in true begin
+    if Int64.ge i reps then break[repeated] checksum
+    else {
+      checksum := Int64.add (Int64.mul checksum 1099511628211i64) (observe i);
+      i := Int64.add i 1i64;
+      ()
+    }
+  end
+
+fn sigfpe_repeat_cost : Int64 -> Int64 -> Int64
+sigfpe_repeat_cost cost i =
+  Int64.sub (Int64.rem (Int64.add (Int64.add cost i) 1048576i64) 2097153i64) 1048576i64

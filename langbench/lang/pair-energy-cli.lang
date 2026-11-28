@@ -1,0 +1,12 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Data.List.Core
+import BenchmarkInput
+import PairEnergy
+
+proc main : Unit
+main =
+  match bench_input 1i64 131072u64 42u64 with
+    nothing -> bench_usage "usage: pair-energy [values...] | --generate [count [seed]] (defaults 131072 42)"
+    just values -> bench_print (benchmark values)
+  end

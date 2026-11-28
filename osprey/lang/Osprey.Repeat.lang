@@ -1,0 +1,32 @@
+import Osprey.Arguments
+import Lang.Prelude
+import Lang.Cli.Process
+
+proc osprey_repetitions : Unit -> Uint64
+osprey_repetitions () =
+  let count = cli_argument_count_native () in
+  if Int64.eq count 1i64 then 1u64
+  else if Int64.eq count 3i64 then
+    match cli_argument_nth (cli_arguments !cli_process) 1i64 with
+      nothing -> absurd (cli_exit cli_process 2i64)
+      just option ->
+        if String.eq option "--repeat" then
+          let n = osprey_argument 2i64 in
+          if Bool.and (Uint64.gt n 0u64) (Uint64.le n 100000000u64)
+          then n else absurd (cli_exit cli_process 2i64)
+        else absurd (cli_exit cli_process 2i64)
+    end
+  else absurd (cli_exit cli_process 2i64)
+
+fn osprey_repeat : Uint64 -> Uint64 -> (Uint64 -> Uint64) -> Uint64
+osprey_repeat reps seed observe =
+  let mut i = 0u64 in
+  let mut digest = 0u64 in
+  while repeated : Uint64 in true begin
+    if Uint64.ge i reps then break[repeated] digest
+    else {
+      digest := Uint64.add (Uint64.mul digest 1099511628211u64) (observe (Uint64.add seed i));
+      i := Uint64.add i 1u64;
+      ()
+    }
+  end

@@ -1,0 +1,47 @@
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Cli.Process
+import Lang.Cli.Text
+import Lang.Text.MachineParse
+
+fn ackermann : Uint64 -> Uint64 -> Uint64
+ackermann m n =
+  if m == 0u64 then n + 1u64
+  else if n == 0u64 then ackermann (m - 1u64) 1u64
+  else ackermann (m - 1u64) (ackermann m (n - 1u64))
+
+proc argument : Int64 -> Maybe(Uint64)
+argument index =
+  match cli_argument_nth (cli_arguments !cli_process) index with
+    nothing -> nothing
+    just text -> integer_parse_digits integer_u64 radix_decimal 18446744073709551615u64 false text 0i64
+  end
+
+-- An optional positional argument: absent -> the default, present -> must parse.
+proc argument_or : Int64 -> Uint64 -> Maybe(Uint64)
+argument_or index fallback =
+  if cli_argument_count_native () <= index then just fallback else argument index
+
+proc usage : Unit
+usage =
+  let _ = cli_write_line cli_stderr "usage: ackermann [m [n]] (unsigned 64-bit decimal integers; defaults 3 13)" in
+  absurd (cli_exit cli_process 2i64)
+
+proc main : Unit
+main =
+  if cli_argument_count_native () > 3i64 then usage else
+  match argument_or 1i64 3u64 with
+    nothing -> usage
+    just m -> match argument_or 2i64 13u64 with
+      nothing -> usage
+      just n -> let _ = cli_write_line cli_stdout (integer_render integer_u64 radix_decimal (the ackermann m n)) in ()
+    end
+  end

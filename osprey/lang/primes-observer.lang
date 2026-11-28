@@ -1,0 +1,62 @@
+import Osprey.Arguments
+import Lang.Prelude
+import Lang.Prelude.Instances
+import Lang.Prelude.Typeclasses.Sum
+import Sum.SumOps
+import Lang.Prelude.Typeclasses.Sub
+import Sub.SubOps
+import Lang.Prelude.Typeclasses.Mod
+import Mod.ModOps
+import Lang.Prelude.Typeclasses.Ord
+import Ord.OrdOps
+import Lang.Prelude.Typeclasses.Eq
+import Eq.EqOps
+import Lang.Cli.Text
+import Lang.Text.MachineFormat
+
+type CandidateTest = Uint64 -> Bool
+type Counting = CandidateTest -> Uint64 -> Uint64
+
+fn count_candidates : CandidateTest -> Uint64 -> Uint64
+count_candidates keep last =
+  if last < 2u64 then 0u64 else
+    ((if keep last then 1u64 else 0u64) + count_candidates keep (last - 1u64))
+
+-- A sieve acts on a finite counting observation. Advancing the sieve
+-- composes another exclusion. It receives no rank, candidate, or bound.
+codata PrimeSieve where
+  count_from : PrimeSieve -> Uint64 -> Counting
+  next_sieve : PrimeSieve -> PrimeSieve
+end
+
+fn sieves : (Uint64 -> Counting) -> PrimeSieve
+count_from (sieves count) = count
+next_sieve (sieves count) = sieves (\rank keep bound ->
+  if bound < 2u64 then 0u64 else
+  if rank >= (bound - 2u64) then count_candidates keep bound else
+    let divisor = (rank + 2u64) in
+    count (rank + 1u64)
+      (\x -> if x <= divisor then keep x else
+        if (x % divisor) == 0u64 then false else keep x)
+      bound)
+
+fn sieve_at : Uint64 -> PrimeSieve -> PrimeSieve
+sieve_at depth source =
+  if depth == 0u64 then source
+  else sieve_at (depth - 1u64) (next_sieve source)
+
+fn primes : PrimeSieve
+primes = sieves (\_ -> count_candidates)
+
+-- Only the final observation supplies a word. A divisor greater than or
+-- equal to the bound has no proper multiple in the observed interval.
+fn prime_count : Uint64 -> Uint64
+prime_count bound =
+  if bound < 2u64 then 0u64 else
+    count_from (sieve_at (bound - 2u64) primes) 0u64 (\_ -> true) bound
+
+proc main : Unit
+main = the Unit in
+  let bound = osprey_argument 1i64 in
+  let _ = cli_write_line cli_stdout
+    (integer_render integer_u64 radix_decimal (prime_count bound)) in ()
